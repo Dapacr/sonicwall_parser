@@ -1,1 +1,1 @@
-cat sampleExport.txt |sed ':a;N;$!ba;s/\n/\&/g' |base64 -w 0 > sampleExport.exp
+tr '\n' '&' < sampleExport.txt < sampleExport.txt | base64 -b 0 -o sampleExport.exp
