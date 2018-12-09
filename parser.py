@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Parses Sonicwall Security policies, NAT policies, Groups and Services from a settings export file
 """
 
@@ -7,11 +9,11 @@ import urllib.parse
 import collections
 import base64
 
-with open(sys.argv[1], 'rb') as f:
+with open(sys.argv[1], 'r') as f:
     read_data = f.readline()
 
-decoded_data = base64.b64decode(read_data)
-decoded_data =  str(decoded_data).split("&")
+decoded_data = base64.b64decode(read_data).decode("utf-8")
+decoded_data =  decoded_data.split("&")
 
 rules = []
 ruleID = ""
