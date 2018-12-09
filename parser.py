@@ -73,6 +73,8 @@ serviceType = ""
 for line in decoded_data:
     line = line.strip()
     if re.match('^policy', line):
+        """Parse security polices"""
+
         policyField, policyID, policyValue = re.search('^policy(.*)_(\d+)=(.*)', line).groups()
         policyID = int(policyID) + 1
 
@@ -151,6 +153,8 @@ for line in decoded_data:
             ruleClass = ""
 
     if re.match('^natPolicy', line):
+        """Parse NAT policies"""
+
         policyField, policyID, policyValue = re.search('^natPolicy(.*)_(\d+)=(.*)', line).groups()
         policyID = int(policyID) + 1
 
@@ -242,22 +246,9 @@ for line in decoded_data:
             natComment = ""
             natClass = ""
 
-    if re.match('^addro_', line):
-        if re.match('^addro_atomToGrp_', line):
-            groupID, groupObject = re.search('^addro_atomToGrp_(\d+)=(.*)', line).groups()
-            groupObject = urllib.parse.unquote(groupObject)
-            nextPattern = "^addro_grpToGrp_"+groupID
-            nextGroupPattern = nextPattern+'=(.*)'
-        elif re.match(nextPattern, line):
-            groupName = re.search(nextGroupPattern, line).group(1)
-            groupName = urllib.parse.unquote(groupName)
-            if groupName not in addrGroups:
-                addrGroups[groupName] = []
-                addrGroups[groupName].append(groupObject)
-            else:
-                addrGroups[groupName].append(groupObject)
-
     if re.match('^addrObj', line):
+        """Parse address objects"""
+
         if re.match('^addrObjId_', line):
             addrID, addrName = re.search('^addrObjId_(.*)=(.*)', line).groups()
             addrName = urllib.parse.unquote(addrName)
@@ -287,22 +278,26 @@ for line in decoded_data:
             addrZone = ""
             addrSubnet = ""
 
-    if re.match('^so_', line):
-        if re.match('^so_atomToGrp_', line):
-            sgroupID, sgroupObject = re.search('^so_atomToGrp_(\d+)=(.*)', line).groups()
-            sgroupObject = urllib.parse.unquote(sgroupObject)
-            nextsPattern = "^so_grpToGrp_"+sgroupID
-            nextsGroupPattern = nextsPattern+'=(.*)'
-        elif re.match(nextsPattern, line):
-            sgroupName = re.search(nextsGroupPattern, line).group(1)
-            sgroupName = urllib.parse.unquote(sgroupName)
-            if sgroupName not in serviceGroups:
-                serviceGroups[sgroupName] = []
-                serviceGroups[sgroupName].append(sgroupObject)
+    if re.match('^addro_', line):
+        """Parse address groups"""
+
+        if re.match('^addro_atomToGrp_', line):
+            groupID, groupObject = re.search('^addro_atomToGrp_(\d+)=(.*)', line).groups()
+            groupObject = urllib.parse.unquote(groupObject)
+            nextPattern = "^addro_grpToGrp_"+groupID
+            nextGroupPattern = nextPattern+'=(.*)'
+        elif re.match(nextPattern, line):
+            groupName = re.search(nextGroupPattern, line).group(1)
+            groupName = urllib.parse.unquote(groupName)
+            if groupName not in addrGroups:
+                addrGroups[groupName] = []
+                addrGroups[groupName].append(groupObject)
             else:
-                serviceGroups[sgroupName].append(sgroupObject)
+                addrGroups[groupName].append(groupObject)
 
     if re.match('^svcObj', line):
+        """Parse service objects"""
+
         if re.match('^svcObjId_', line):
             serviceID, serviceName = re.search('^svcObjId_(.*)=(.*)', line).groups()
             serviceName = urllib.parse.unquote(serviceName)
@@ -339,6 +334,23 @@ for line in decoded_data:
             serviceName = ""
             serviceStartPort = ""
             serviceEndPort = ""
+
+    if re.match('^so_', line):
+        """ Parse service groups"""
+
+        if re.match('^so_atomToGrp_', line):
+            sgroupID, sgroupObject = re.search('^so_atomToGrp_(\d+)=(.*)', line).groups()
+            sgroupObject = urllib.parse.unquote(sgroupObject)
+            nextsPattern = "^so_grpToGrp_"+sgroupID
+            nextsGroupPattern = nextsPattern+'=(.*)'
+        elif re.match(nextsPattern, line):
+            sgroupName = re.search(nextsGroupPattern, line).group(1)
+            sgroupName = urllib.parse.unquote(sgroupName)
+            if sgroupName not in serviceGroups:
+                serviceGroups[sgroupName] = []
+                serviceGroups[sgroupName].append(sgroupObject)
+            else:
+                serviceGroups[sgroupName].append(sgroupObject)
 
 print("====================================================================================================")
 print("========== NAT Rules ===============================================================================")
