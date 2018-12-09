@@ -148,7 +148,7 @@ for line in decoded_data:
             ruleClass = ""
 
     if re.match('^natPolicy', line):
-        policyField, policyID, policyValue = re.search('^natPolicy(.*)_(\d+) = (.*)', line).groups()
+        policyField, policyID, policyValue = re.search('^natPolicy(.*)_(\d+)=(.*)', line).groups()
         policyID = int(policyID) + 1
 
         if re.match('^natPolicyPriority', line):
@@ -286,10 +286,10 @@ for line in decoded_data:
 
     if re.match('^so_', line):
         if re.match('^so_atomToGrp_', line):
-            sgroupID, sgroupObject = re.search('^so_atomToGrp_(\d+) = (.*)', line).groups()
+            sgroupID, sgroupObject = re.search('^so_atomToGrp_(\d+)=(.*)', line).groups()
             sgroupObject = urllib.unquote(sgroupObject)
             nextsPattern = "^so_grpToGrp_"+sgroupID
-            nextsGroupPattern = nextsPattern+' = (.*)'
+            nextsGroupPattern = nextsPattern+'=(.*)'
         elif re.match(nextsPattern, line):
             sgroupName = re.search(nextsGroupPattern, line).group(1)
             sgroupName = urllib.unquote(sgroupName)
@@ -301,16 +301,16 @@ for line in decoded_data:
 
     if re.match('^svcObj', line):
         if re.match('^svcObjId_', line):
-            serviceID, serviceName = re.search('^svcObjId_(.*) = (.*)', line).groups()
+            serviceID, serviceName = re.search('^svcObjId_(.*)=(.*)', line).groups()
             serviceName = urllib.unquote(serviceName)
         elif re.match(str("^svcObjType_"+serviceID), line):
-            serviceType = re.search(str("^svcObjType_"+serviceID+" = (.*)"), line).group(1)
+            serviceType = re.search(str("^svcObjType_"+serviceID+"=(.*)"), line).group(1)
         elif re.match(str("^svcObjIpType_"+serviceID), line):
-            serviceProtocol = re.search(str("^svcObjIpType_"+serviceID+" = (.*)"), line).group(1)
+            serviceProtocol = re.search(str("^svcObjIpType_"+serviceID+"=(.*)"), line).group(1)
         elif re.match(str("^svcObjPort1_"+serviceID), line):
-            serviceStartPort = re.search(str("^svcObjPort1_"+serviceID+" = (.*)"), line).group(1)
+            serviceStartPort = re.search(str("^svcObjPort1_"+serviceID+"=(.*)"), line).group(1)
         elif re.match(str("^svcObjPort2_"+serviceID), line):
-            serviceEndPort = re.search(str("^svcObjPort2_"+serviceID+" = (.*)"), line).group(1)
+            serviceEndPort = re.search(str("^svcObjPort2_"+serviceID+"=(.*)"), line).group(1)
 
         if serviceID and serviceName and serviceProtocol and serviceStartPort and serviceEndPort:
             if serviceType == "2":
