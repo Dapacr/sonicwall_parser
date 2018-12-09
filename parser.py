@@ -8,7 +8,6 @@ import base64
 
 with open(sys.argv[1], 'r') as f:
     read_data = f.readline()
-f.close()
 
 decoded_data = base64.b64decode(read_data)
 decoded_data =  decoded_data.split("&")
@@ -23,6 +22,22 @@ ruleDestService=""
 ruleComment=""
 ruleAction=""
 ruleStatus=""
+rulePriority=""
+ruleClass=""
+
+nats=[]
+natID=""
+natDstOrig=""
+natSrcZone=""
+natDstTrans=""
+natSrcTrans=""
+natSvcOrig=""
+natSvcTrans=""
+natIfaceSrc=""
+natIfaceDst=""
+natPriority=""
+natComment=""
+natClass=""
 
 prevSrcZone=""
 prevDestZone=""
@@ -57,7 +72,11 @@ for line in decoded_data:
     line = line.strip()
     if re.match('^policy', line):
         policyField, policyID, policyValue = re.search('^policy(.*)_(\d+)=(.*)', line).groups()
-        if re.match('^policySrcZone', line):
+        policyID = int(policyID) + 1
+
+        if re.match('^policyPriority', line):
+            rulePriority = policyValue
+        elif re.match('^policySrcZone', line):
             ruleSrcZone = policyValue
         elif re.match('^policyDstZone', line):
             ruleDestZone = policyValue
@@ -78,9 +97,13 @@ for line in decoded_data:
                 ruleDestService = "Any"
         elif re.match('^policyComment', line):
             if not policyValue:
-                ruleComment = "No Comment!"
+                ruleComment = "No Comment"
             else:
                 ruleComment = policyValue
+            if re.match('^Auto-?added|^IPv[46]', ruleComment):
+                ruleClass = "Default"
+            else:
+                ruleClass = "Custom"
         elif re.match('^policyAction', line):
             if policyValue == "2":
                 ruleAction = "Allow"
@@ -93,23 +116,27 @@ for line in decoded_data:
                 ruleStatus = "Enabled"
             else:
                 ruleStatus = "Disabled"
-        if ruleSrcZone and ruleDestZone and ruleSrcNet and ruleDestNet and ruleDestService and ruleAction and ruleStatus and ruleComment:
+        if rulePriority and ruleSrcZone and ruleDestZone and ruleSrcNet and ruleDestNet and ruleDestService and ruleAction and ruleStatus and ruleComment and ruleClass:
             # Sonicwall is goofy and has some enabled rules set to 0 when its an auto-added rule
             if re.match('^Auto', ruleComment) and ruleStatus == "Disabled":
                 ruleStatus = "Enabled"
 
             rule={
                 "ruleID": policyID,
-                "ruleSrcZone": ruleSrcZone,
-                "ruleDestZone": ruleDestZone,
+                "rulePriority": rulePriority,
+                "ruleSrcZone": urllib.unquote(ruleSrcZone),
+                "ruleDestZone": urllib.unquote(ruleDestZone),
                 "ruleSrcNet": urllib.unquote(ruleSrcNet),
                 "ruleDestNet": urllib.unquote(ruleDestNet),
                 "ruleDestService": urllib.unquote(ruleDestService),
                 "ruleAction": ruleAction,
                 "ruleStatus": ruleStatus,
-                "ruleComment": urllib.unquote(ruleComment)
+                "ruleComment": urllib.unquote(ruleComment),
+                "ruleClass": ruleClass
             }
             rules.append(rule)
+          
+            rulePriority=""
             ruleSrcZone=""
             ruleDestZone=""
             ruleSrcNet=""
@@ -118,6 +145,99 @@ for line in decoded_data:
             ruleAction=""
             ruleComment=""
             ruleStatus=""
+            ruleClass=""
+
+    if re.match('^natPolicy', line):
+        policyField, policyID, policyValue = re.search('^natPolicy(.*)_(\d+)=(.*)', line).groups()
+        policyID = int(policyID) + 1
+
+        if re.match('^natPolicyPriority', line):
+            natPriority = policyValue
+        elif re.match('^natPolicyOrigSrc', line):
+            if policyValue:
+                natSrcOrig = policyValue
+            else:
+                natSrcOrig = "Any"
+        elif re.match('^natPolicyTransSrc', line):
+            if policyValue:
+                natSrcTrans = policyValue
+            else:
+                natSrcTrans = "Original"
+        elif re.match('^natPolicyOrigDst', line):
+            if policyValue:
+                natDstOrig = policyValue
+            else:
+                natDstOrig = "Any"
+        elif re.match('^natPolicyTransDst', line):
+            if policyValue:
+                natDstTrans = policyValue
+            else:
+                natDstTrans = "Original"
+        elif re.match('^natPolicyOrigSvc', line):
+            if policyValue:
+                natSvcOrig = policyValue
+            else:
+                natSvcOrig = "Any"
+        elif re.match('^natPolicyTransSvc', line):
+            if policyValue:
+                natSvcTrans = policyValue
+            else:
+                natSvcTrans = "Original"
+        elif re.match('^natPolicySrcIface', line):
+            if policyValue:
+                if policyValue == "18":
+                    natIfaceSrc = "MGMT"
+                elif policyValue == "-1":
+                    natIfaceSrc = "Any"
+                else:
+                    natIfaceSrc = "X%s" % policyValue
+        elif re.match('^natPolicyDstIface', line):
+            if policyValue:
+                natIfaceDst = policyValue
+                if policyValue == "18":
+                    natIfaceDst = "MGMT"
+                elif policyValue == "-1":
+                    natIfaceDst = "Any"
+                else:
+                    natIfaceDst = "X%s" % policyValue
+        elif re.match('^natPolicyComment', line):
+            if not policyValue:
+                natComment = "No Comment"
+            else:
+                natComment = policyValue
+            if re.match('^Auto-?added|^Management|^IKE', natComment):
+                natClass = "Default"
+            else:
+                natClass = "Custom"
+
+        if natPriority and natSrcOrig and natSrcTrans and natDstOrig and natDstTrans and natSvcOrig and natIfaceSrc and natIfaceDst and natSvcTrans and natComment:
+            nat={
+                "natID": policyID,
+                "natPriority": natPriority,
+                "natSrcOrig": urllib.unquote(natSrcOrig),
+                "natSrcTrans": urllib.unquote(natSrcTrans),
+                "natDstOrig": urllib.unquote(natDstOrig),
+                "natDstTrans": urllib.unquote(natDstTrans),
+                "natSvcOrig": urllib.unquote(natSvcOrig),
+                "natSvcTrans": urllib.unquote(natSvcTrans),
+                "natIfaceSrc": natIfaceSrc,
+                "natIfaceDst": natIfaceDst,
+                "natComment": urllib.unquote(natComment),
+                "natClass": urllib.unquote(natClass)
+            }
+            nats.append(nat)
+
+            natPriority=""
+            natSrcOrig=""
+            natSrcTrans=""
+            natDstOrig=""
+            natDstTrans=""
+            natSvcOrig=""
+            natSvcTrans=""
+            natIfaceSrc=""
+            natIfaceDst=""
+            natComment=""
+            natClass=""
 
     if re.match('^addro_', line):
         if re.match('^addro_atomToGrp_', line):
@@ -148,6 +268,7 @@ for line in decoded_data:
             addrIP = re.search(str("^addrObjIp1_"+addrID+"=(.*)"), line).group(1)
         elif re.match(str("^addrObjIp2_"+addrID), line):
             addrSubnet = re.search(str("^addrObjIp2_"+addrID+"=(.*)"), line).group(1)
+
         if addrID and addrName and addrType and addrZone and addrIP and addrSubnet:
             addrObjects[addrName] = {
                 "addrZone": addrZone,
@@ -155,6 +276,7 @@ for line in decoded_data:
                 "addrSubnet": addrSubnet,
                 "addrType": addrType
             }
+
             addrID=""
             addrName=""
             addrType=""
@@ -189,50 +311,64 @@ for line in decoded_data:
             serviceStartPort = re.search(str("^svcObjPort1_"+serviceID+"=(.*)"), line).group(1)
         elif re.match(str("^svcObjPort2_"+serviceID), line):
             serviceEndPort = re.search(str("^svcObjPort2_"+serviceID+"=(.*)"), line).group(1)
+
         if serviceID and serviceName and serviceProtocol and serviceStartPort and serviceEndPort:
             if serviceType == "2":
-                serviceProtocol = "NA"
+                serviceProtocol = "N/A"
                 serviceType = "Group"
-                serviceEndPort = "NA"
-                serviceStartPort = "NA"
+                serviceEndPort = "N/A"
+                serviceStartPort = "N/A"
             elif serviceType == "1":
                 serviceType = "Object"
             if serviceProtocol == "17":
                 serviceProtocol = "UDP"
             elif serviceProtocol == "6":
                 serviceProtocol = "TCP"
+
             serviceObjects[serviceName] = {
                 "serviceStartPort": serviceStartPort,
                 "serviceEndPort": serviceEndPort,
                 "serviceProtocol": serviceProtocol,
                 "serviceType": serviceType
             }
+
             serviceID=""
             serviceName=""
             serviceStartPort=""
             serviceEndPort=""
 
 print "=========================================================="
+print "================== NAT Rules ========================"
+print "=========================================================="
+print ""
+print "RuleID\tPriority\tSource Original\tSource Translated\tDestination Original\tDestination Translated\tService Original\tService Translated\tInterface Inbound\tInterface Outbound\tComment\tClass"
+for x in nats:
+    # if x["ruleSrcZone"] != prevSrcZone or x["ruleDestZone"] != prevDestZone`:`
+    #     print '\n\nSource Zone: %s, Dest Zone: %s' % (x["ruleSrcZone"], x["ruleDestZone"])
+    print '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (x["natID"], x["natPriority"], x["natSrcOrig"], x["natSrcTrans"], x["natDstOrig"], x["natDstTrans"], x["natSvcOrig"], x["natSvcTrans"], x["natIfaceSrc"], x["natIfaceDst"], x["natComment"], x["natClass"])
+
+print ""
+print "=========================================================="
 print "================== Firewall Rules ========================"
 print "=========================================================="
 print ""
-print "RuleID,Source Zone,Dest Zone,Source Net,Dest Net, Dest Service, Action, Status, Comment"
+print "RuleID\tPriority\tSource Zone\tDest Zone\tSource Net\tDest Net\tDest Service\tAction\tStatus\tComment\tClass"
 for x in rules:
-    if x["ruleSrcZone"] != prevSrcZone or x["ruleDestZone"] != prevDestZone:
-        print '\n\nSource Zone: %s, Dest Zone: %s' % (x["ruleSrcZone"], x["ruleDestZone"])
-    print '%s,%s,%s,%s,%s,%s,%s,%s,%s' % (x["ruleID"], x["ruleSrcZone"], x["ruleDestZone"], x["ruleSrcNet"], x["ruleDestNet"], x["ruleDestService"], x["ruleAction"], x["ruleStatus"], x["ruleComment"])
+    # if x["ruleSrcZone"] != prevSrcZone or x["ruleDestZone"] != prevDestZone`:`
+    #     print '\n\nSource Zone: %s, Dest Zone: %s' % (x["ruleSrcZone"], x["ruleDestZone"])
+    print '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (x["ruleID"], x["rulePriority"], x["ruleSrcZone"], x["ruleDestZone"], x["ruleSrcNet"], x["ruleDestNet"], x["ruleDestService"], x["ruleAction"], x["ruleStatus"], x["ruleComment"], x["ruleClass"])
     prevSrcZone=x["ruleSrcZone"]
     prevDestZone=x["ruleDestZone"]
-    
+
 print ""
 print "=========================================================="
 print "================== Address Objects ======================="
 print "=========================================================="
 print ""
-print "Address Name,Zone,IP,Subnet"
+print "Address Name\tZone\tIP\tSubnet"
 oAddrObjects = collections.OrderedDict(sorted(addrObjects.items()))
 for addr,addrFields in oAddrObjects.iteritems():
-    print '%s,%s,%s,%s' % (addr, addrFields["addrZone"], addrFields["addrIP"], addrFields["addrSubnet"])
+    print '%s\t%s\t%s\t%s' % (addr, addrFields["addrZone"], addrFields["addrIP"], addrFields["addrSubnet"])
 
 print ""
 print "=========================================================="
@@ -250,10 +386,10 @@ print "=========================================================="
 print "================== Service Objects ======================="
 print "=========================================================="
 print ""
-print "Service Name, Start Port, EndPort, Protocol, ObjectType"
+print "Service Name\tStart Port\tEnd Port\tProtocol\tObject Type"
 oServiceObjects = collections.OrderedDict(sorted(serviceObjects.items()))
 for service,serviceFields in oServiceObjects.iteritems():
-    print '%s,%s-%s,%s,%s' % (service, serviceFields["serviceStartPort"], serviceFields["serviceEndPort"], serviceFields["serviceProtocol"], serviceFields["serviceType"])
+    print '%s\t%s\t%s\t%s\t%s' % (service, serviceFields["serviceStartPort"], serviceFields["serviceEndPort"], serviceFields["serviceProtocol"], serviceFields["serviceType"])
 
 print ""
 print "=========================================================="
@@ -266,4 +402,3 @@ for serviceGroup,serviceGroupObjects in serviceGroups.iteritems():
         #print serviceObj
         print "\t%s" % serviceObj
     print ""
-

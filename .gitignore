@@ -1,3 +1,8 @@
-.idea
-.tmp
+.vscode
+*.idea
+*.tmp
+*.txt
+*.exp
 
+!sampleExport.exp
+!sampleExport.txt
